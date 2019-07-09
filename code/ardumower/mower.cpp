@@ -39,10 +39,11 @@ Mower::Mower(){
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
     motorLeftPID.Ki            = 0.29;
     motorLeftPID.Kd            = 0.25;
-    motorZeroSettleTime        = 3000 ;     // how long (ms) to wait for motors to settle at zero speed
-		motorReverseTime           = 1200;      // max. reverse time (ms)
-		motorRollTimeMax           = 1500;      // max. roll time (ms)
-		motorRollTimeMin           = 750;       // min. roll time (ms) should be smaller than motorRollTimeMax  
+//WM    motorZeroSettleTime        = 3000 ;     // how long (ms) to wait for motors to settle at zero speed
+    motorZeroSettleTime        = 500 ;      // how long (ms) to wait for motors to settle at zero speed
+	motorReverseTime           = 1200;      // max. reverse time (ms)
+	motorRollTimeMax           = 1500;      // max. roll time (ms)
+	motorRollTimeMin           = 750;       // min. roll time (ms) should be smaller than motorRollTimeMax  
   #else // ROBOT_MINI		
 		motorPowerMax              = 2.0;         // motor wheel max power (Watt)			
 		motorSpeedMaxPwm           = 127;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)	  
@@ -107,14 +108,14 @@ Mower::Mower(){
   perimeterTrackRollTime     = 1500;       // roll time during perimeter tracking
   perimeterTrackRevTime      = 2200;       // reverse time during perimeter tracking
   #if defined (ROBOT_ARDUMOWER)
-	  perimeterPID.Kp            = 16;       // perimeter PID controller
+	perimeterPID.Kp            = 16;       // perimeter PID controller
     perimeterPID.Ki            = 8;
     perimeterPID.Kd            = 0.8;  
-	#else // ROBOT_MINI
-		perimeterPID.Kp    = 24.0;  // perimeter PID controller
+#else // ROBOT_MINI
+	perimeterPID.Kp    = 24.0;  // perimeter PID controller
     perimeterPID.Ki    = 7.0;
     perimeterPID.Kd    = 9.0;
-	#endif  
+#endif  
   
   trackingPerimeterTransitionTimeOut              = 2500;   // never<500 ms
   trackingErrorTimeOut                            = 10000;  // 0=disable
@@ -358,6 +359,9 @@ void Mower::setup(){
   pinMode(pinMotorMowEnable, OUTPUT);
   digitalWrite(pinMotorMowEnable, HIGH);  
   pinMode(pinMotorMowFault, INPUT);      
+    
+// WM Pullup , sonst kommt "Error: motor mow fault"
+  digitalWrite(pinMotorMowFault, HIGH);  
     
   // lawn sensor
   pinMode(pinLawnBackRecv, INPUT);
@@ -631,7 +635,8 @@ int Mower::readSensor(char type){
 
 void Mower::setActuator(char type, int value){
   switch (type){
-    case ACT_MOTOR_MOW: setMC33926(pinMotorMowDir, pinMotorMowPWM, value); break;// Motortreiber einstellung - bei Bedarf ändern z.B setL298N auf setMC33926
+    // WM case ACT_MOTOR_MOW: setMC33926(pinMotorMowDir, pinMotorMowPWM, value); break;// Motortreiber einstellung - bei Bedarf ändern z.B setL298N auf setMC33926
+    case ACT_MOTOR_MOW: setL6203(pinMotorMowDir, pinMotorMowPWM, value); break;				// Motortreibereinstellung - bei Bedarf ändern z.B setL298N auf setMC33926
     case ACT_MOTOR_LEFT: setMC33926(pinMotorLeftDir, pinMotorLeftPWM, value); break;//                                                                  Motortreiber einstellung - bei Bedarf ändern z.B setL298N auf setMC33926
     case ACT_MOTOR_RIGHT: setMC33926(pinMotorRightDir, pinMotorRightPWM, value); break; //                                                              Motortreiber einstellung - bei Bedarf ändern z.B setL298N auf setMC33926
     case ACT_BUZZER: if (value == 0) Buzzer.noTone(); else Buzzer.tone(value); break;

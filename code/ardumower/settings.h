@@ -145,7 +145,7 @@ void Robot::loadSaveUserSettings(boolean readflag){
   eereadwriteString(readflag, addr, esp8266ConfigString);
   eereadwrite(readflag, addr, tiltUse);
   eereadwrite(readflag, addr, sonarSlowBelow);
-	eereadwrite(readflag, addr, motorMowForceOff);	
+  // WM vorübergehend ausgeblendet  eereadwrite(readflag, addr, motorMowForceOff);	
   eereadwrite(readflag, addr, freeWheelUse);  
   Console.print(F("loadSaveUserSettings addrstop="));
   Console.println(addr);

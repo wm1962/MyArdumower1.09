@@ -447,6 +447,7 @@ void Robot::readSensors(){
       	&& (stateCurr != STATE_STATION_CHARGING) && (stateCurr != STATE_STATION_CHECK) 
       	&& (stateCurr != STATE_STATION_REV) && (stateCurr != STATE_STATION_ROLL) 
       	&& (stateCurr != STATE_STATION_FORW) && (stateCurr != STATE_REMOTE) && (stateCurr != STATE_PERI_OUT_FORW)
+      	&& (stateCurr != STATE_ERROR)						// WM !STATE_ERROR eingefügt
         && (stateCurr != STATE_PERI_OUT_REV) && (stateCurr != STATE_PERI_OUT_ROLL) && (stateCurr != STATE_PERI_TRACK)) {
         Console.println("Error: perimeter too far away");
         addErrorCounter(ERR_PERIMETER_TIMEOUT);
@@ -708,20 +709,22 @@ void Robot::checkCurrent(){
     if (motorLeftSense >= motorPowerMax)
     {
        motorLeftSenseCounter++;
-			 setSensorTriggered(SEN_MOTOR_LEFT);
+	   setSensorTriggered(SEN_MOTOR_LEFT);
        setMotorPWM( 0, 0, false );
        addErrorCounter(ERR_MOTOR_LEFT);
        setNextState(STATE_ERROR, 0);
-       Console.println("Error: Motor Left current");
+	   // WM
+       Console.print("Error: Motor Left current : "); Console.print(motorLeftSense); Console.print(" max : "); Console.println(motorPowerMax);
     }
     if (motorRightSense >= motorPowerMax)
     {
        motorRightSenseCounter++;
-			 setSensorTriggered(SEN_MOTOR_RIGHT);
-			 setMotorPWM( 0, 0, false );
+	   setSensorTriggered(SEN_MOTOR_RIGHT);
+	   setMotorPWM( 0, 0, false );
        addErrorCounter(ERR_MOTOR_RIGHT);
        setNextState(STATE_ERROR, 0);
-       Console.println("Error: Motor Right current");
+	   // WM
+       Console.print("Error: Motor Right current : "); Console.print(motorRightSense); Console.print(" max : "); Console.println(motorPowerMax);
     }
   }
 

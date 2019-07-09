@@ -56,7 +56,7 @@
 */
 
 // code version 
-#define VER "1.0a9-Azurit"
+#define VER "WM-1.0a9-Azurit"
  
 
 // sensors
@@ -297,7 +297,10 @@ class Robot
     boolean rotateLeft;
     unsigned long nextTimeRotationChange;
     bool motorErrorSense;
-    // -------- mower motor state -----------------------
+    float lastmotorLeftPWMCurr;		// WM
+	float lastmotorRightPWMCurr;	// WM
+
+	// -------- mower motor state -----------------------
     // mower motor sppeed; range 0..motorMowSpeedMaxPwm
     float motorMowAccel       ;  // motor mower acceleration (warning: do not set too high)
     int motorMowSpeedMaxPwm ;    // motor mower max PWM
@@ -416,6 +419,18 @@ class Robot
     unsigned long sonarObstacleTimeout ;
     unsigned long nextTimeSonar ;
     unsigned long nextTimeCheckSonar ;
+        
+    // -------- Height Control --------------------------
+    // WM
+	// --------------------------------------------------
+	char  hcUse;					// use height control?
+	char  hcdriveToPos;				// drive to position
+	int	  hcTicksPerRevolution ;	// Steigung Spindel
+	float hcIstwert;
+	float hcSollwert;
+	float hcMin;
+	float hcMax;
+
     // --------- pfodApp ----------------------------------
     RemoteControl rc; // pfodApp
     unsigned long nextTimePfodLoop ;    
