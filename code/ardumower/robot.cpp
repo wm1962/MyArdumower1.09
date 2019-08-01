@@ -41,7 +41,7 @@ const char* stateNames[] ={"OFF ", "RC  ", "FORW", "ROLL", "REV ", "CIRC", "ERR 
 const char* sensorNames[] ={"SEN_PERIM_LEFT", "SEN_PERIM_RIGHT", "SEN_PERIM_LEFT_EXTRA", "SEN_PERIM_RIGHT_EXTRA", "SEN_LAWN_FRONT", "SEN_LAWN_BACK", 
 	"SEN_BAT_VOLTAGE", "SEN_CHG_CURRENT", "SEN_CHG_VOLTAGE", "SEN_MOTOR_LEFT", "SEN_MOTOR_RIGHT", "SEN_MOTOR_MOW", "SEN_BUMPER_LEFT", "SEN_BUMPER_RIGHT", 
 	"SEN_DROP_LEFT", "SEN_DROP_RIGHT", "SEN_SONAR_CENTER", "SEN_SONAR_LEFT", "SEN_SONAR_RIGHT", "SEN_BUTTON", "SEN_IMU", "SEN_MOTOR_MOW_RPM", "SEN_RTC",
-  "SEN_RAIN", "SEN_TILT"};
+  "SEN_RAIN", "SEN_TILT", "SEN_FREE_WHEEL", "SEN_LOAD_CURRENT"};	// WM
 
 const char* mowPatternNames[] = {"RAND", "LANE", "BIDIR"};
 
@@ -165,7 +165,8 @@ Robot::Robot(){
   lastTimeBatCapacity = 0;
   chgVoltage = 0;
   chgCurrent = 0;
-    
+  loadCurrent = 0;	// WM
+      
   memset(errorCounterMax, 0, sizeof errorCounterMax);
   memset(errorCounter, 0, sizeof errorCounterMax);
     
@@ -219,14 +220,16 @@ const char *Robot::mowPatternName(){
   return mowPatternNames[mowPatternCurr];
 }
 
-void Robot::setSensorTriggered(char type){
+// WM void Robot::setSensorTriggered(char type){
+void Robot::setSensorTriggered(byte type){
   lastSensorTriggered = type;
   lastSensorTriggeredTime = millis();
   Console.println( sensorNames[lastSensorTriggered] );
 }
 
 const char *Robot::lastSensorTriggeredName(){
-  String s = "";
+  // WM - String muß static sein, da ein Zeiger zurückgegeben wird
+  static  String s = "";
   if (lastSensorTriggeredTime != 0) {
     s = sensorNames[lastSensorTriggered];
     s += " (";
@@ -322,7 +325,7 @@ void Robot::checkButton(){
       // ON/OFF button pressed                                                
       beep(1);
       buttonCounter++;
-			setSensorTriggered(SEN_BUTTON);
+      setSensorTriggered(SEN_BUTTON);
       resetIdleTime();
     } 
     else { 
@@ -417,13 +420,18 @@ void Robot::readSensors(){
   if ((perimeterUse) && (millis() >= nextTimePerimeter)){    
     if (stateCurr == STATE_PERI_TRACK) nextTimePerimeter = millis() +  30;   
     else nextTimePerimeter = millis() +  50;   // 50
-    perimeterMag = readSensor(SEN_PERIM_LEFT);
+
+	// WM - select the correct Sensor
+    if (useWhichPeriSensor) perimeterMag = readSensor(SEN_PERIM_RIGHT);
+    else					perimeterMag = readSensor(SEN_PERIM_LEFT);
+	
     if (stateCurr == STATE_PERI_FIND)perimeterMagMedian.add(abs(perimeterMag));
     if ((perimeter.isInside(0) != perimeterInside)){      
-      perimeterCounter++;
-			setSensorTriggered(SEN_PERIM_LEFT);
-      perimeterLastTransitionTime = millis();
-      perimeterInside = perimeter.isInside(0);
+		perimeterCounter++;
+	    if (useWhichPeriSensor) setSensorTriggered(SEN_PERIM_RIGHT);	// WM - select the correct Sensor
+		else					setSensorTriggered(SEN_PERIM_LEFT);		// WM - select the correct Sensor
+		perimeterLastTransitionTime = millis();
+		perimeterInside = perimeter.isInside(0);
     }    
     static boolean LEDstate = false;
     if (perimeterInside && !LEDstate) {
@@ -582,12 +590,14 @@ void Robot::readSensors(){
     }
     // convert to double  
     batADC = readSensor(SEN_BAT_VOLTAGE);
-		int currentADC = readSensor(SEN_CHG_CURRENT);
-		int chgADC = readSensor(SEN_CHG_VOLTAGE);    
-		//Console.println(currentADC);
-    double batvolt = ((double)batADC) * batFactor / 10;  // / 10 due to arduremote bug, can be removed after fixing    
-    double chgvolt = ((double)chgADC) * batChgFactor / 10;  // / 10 due to arduremote bug, can be removed after fixing    
-		double curramp = ((double)currentADC) * chgFactor / 10;  // / 10 due to arduremote bug, can be removed after fixing		
+	int currentADC = readSensor(SEN_CHG_CURRENT);
+	int loadcurrentADC = readSensor(SEN_LOAD_CURRENT);		// WM - Laststrom
+	int chgADC = readSensor(SEN_CHG_VOLTAGE);    
+	//Console.println(currentADC);
+    double batvolt = ((double)batADC) * batFactor / 10;				// / 10 due to arduremote bug, can be removed after fixing    
+    double chgvolt = ((double)chgADC) * batChgFactor / 10;			// / 10 due to arduremote bug, can be removed after fixing    
+	double curramp = ((double)currentADC) * chgFactor / 10;			// / 10 due to arduremote bug, can be removed after fixing		
+	double loadcurramp = ((double)loadcurrentADC) * chgFactor / 10; // / 10 due to arduremote bug, can be removed after fixing
 
     #if defined (PCB_1_3)         // Prüfe ob das V1.3 Board verwendet wird - und wenn ja **UZ**
     batvolt = batvolt + DiodeD9;  // dann rechnet zur Batteriespannung den Spannungsabfall der Diode D9 hinzu. (Spannungsabfall an der Diode D9 auf den 1.3 Board (Die Spannungsanzeige ist zu niedrig verursacht durch die Diode D9) **UZ**
@@ -598,7 +608,8 @@ void Robot::readSensors(){
 		//double accel = 1.0;
     if (abs(batVoltage-batvolt)>5)   batVoltage = batvolt; else batVoltage = (1.0-accel) * batVoltage + accel * batvolt;
     if (abs(chgVoltage-chgvolt)>5)   chgVoltage = chgvolt; else chgVoltage = (1.0-accel) * chgVoltage + accel * chgvolt;
-		if (abs(chgCurrent-curramp)>0.5) chgCurrent = curramp; else chgCurrent = (1.0-accel) * chgCurrent + accel * curramp;       
+	if (abs(chgCurrent-curramp)>0.5) chgCurrent = curramp; else chgCurrent = (1.0-accel) * chgCurrent + accel * curramp;       
+	if (abs(loadCurrent-loadcurramp)>0.5) loadCurrent = loadcurramp; else loadCurrent = (1.0-accel) * loadCurrent + accel * loadcurramp;	// WM
   } 
 
   if ((rainUse) && (millis() >= nextTimeRain)) {
@@ -1583,7 +1594,7 @@ void Robot::loop()  {
     case STATE_PERI_OUT_REV: 
       checkPerimeterBoundary();      
      // if (millis() >= stateEndTime) setNextState(STATE_PERI_OUT_ROLL, rollDir);   
-      if (perimeterInside || (millis() >= stateEndTime)) setNextState (STATE_PERI_OUT_ROLL, rollDir); 
+      if (perimeterInside && (millis() >= stateEndTime)) setNextState (STATE_PERI_OUT_ROLL, rollDir); 
       break;
     case STATE_PERI_OUT_ROLL: 
       if (millis() >= stateEndTime) setNextState(STATE_FORWARD,0);                

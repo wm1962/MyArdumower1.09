@@ -1,4 +1,5 @@
 /*
+// WM - Code von Azurit 07.a
 
   Ardumower (www.ardumower.de)
   Copyright (c) 2013-2014 by Alexander Grau
@@ -37,9 +38,10 @@
 #define SIGCODE_1  // Ardumower default perimeter signal
 //#define SIGCODE_2  // Ardumower alternative perimeter signal
 //#define SIGCODE_3  // Ardumower alternative perimeter signal
+//#define SIGCODE_4  // Testsignal - Rechteck
 
 
-// --- MC33926 motor driver ---
+// --- ARDUINO Motor Shield
 #define USE_DOUBLE_AMPLTIUDE    1         // 1: use +/- input voltage for amplitude (default), 
                                           // 0: use only +input/GND voltage for amplitude
                                          
@@ -50,12 +52,13 @@
 
 // motor driver fault pin
 #define pinFault     4  // M1_nSF
-#define USE_PERI_FAULT        1     // use pinFault for driver fault detection? (set to '0' if not connected!)
+#define USE_PERI_FAULT        0     // use pinFault for driver fault detection? (set to '0' if not connected!)
 
 // motor driver feedback pin (=perimeter open/close detection, used for status LED)
 #define USE_PERI_CURRENT      1     // use pinFeedback for perimeter current measurements? (set to '0' if not connected!)
 #define pinFeedback A0  // M1_FB
-#define PERI_CURRENT_MIN    0.03     // minimum Ampere for perimeter-is-closed detection 
+// WM #define PERI_CURRENT_MIN    0.03     // minimum Ampere for perimeter-is-closed detection 
+#define PERI_CURRENT_MIN    0.05     // minimum Ampere for perimeter-is-closed detection 
 
 // ---- sender current control (via potentiometer) ----
 // sender modulates signal (PWM), based on duty-cycle set via this potentiometer
@@ -65,17 +68,22 @@
 // ---- sender automatic standby (via current sensor for charger) ----
 // sender detects robot via a charging current through the charging pins
 #define USE_CHG_CURRENT       1     // use charging current sensor for robot detection? (set to '0' if not connected!)
-#define pinChargeCurrent     A2     // ACS712-05 current sensor OUT
+#define pinChargeCurrent     A2     // INA169/ACS712-05 current sensor OUT
 #define CHG_CURRENT_MIN   0.008      // minimum Ampere for charging detection
 #define ROBOT_OUT_OF_STATION_TIMEOUT_MINS 360  // timeout for perimeter switch-off if robot not in station (minutes)
 
 // ---- sender status LED ----
 #define  pinLED 13  // ON: perimeter closed, OFF: perimeter open, BLINK: robot is charging
+#define  LED1_GN 12  // ON: perimeter closed, OFF: perimeter open, BLINK: robot is charging
+// WM geht nicht da A6 nicht als Ausgang defeinert werden kann
+// #define  LED1_rt A6  // ON: perimeter closed, OFF: perimeter open, BLINK: robot is charging
+#define  LED2_GN A4  // ON: perimeter closed, OFF: perimeter open, BLINK: robot is charging
+#define  LED2_RT A5  // ON: perimeter closed, OFF: perimeter open, BLINK: robot is charging
 
 
 
 // code version 
-#define VER "596"
+#define VER "WM-596"
 
 // --------------------------------------
 
@@ -108,12 +116,14 @@ int robotOutOfStationTimeMins = 0;
 // http://grauonline.de/alexwww/ardumower/filter/filter.html    
 // "pseudonoise4_pw" signal (sender)
 
-#if defined (SIGCODE_1)	
+#if defined (SIGCODE_1)  
   int8_t sigcode[] = { 1, 1,-1,-1, 1,-1, 1,-1,-1,1, -1, 1, 1,-1,-1, 1,-1,-1, 1,-1,-1, 1, 1,-1 };
 #elif defined (SIGCODE_2)   
   int8_t sigcode[] = { 1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1,-1 };
 #elif defined (SIGCODE_3)   
   int8_t sigcode[] = { 1, 1,-1,-1, 1,-1, 1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,-1,-1, 1,-1 };
+#elif defined (SIGCODE_4)   
+  int8_t sigcode[] = { 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1 };
 #endif
 
 
@@ -195,10 +205,14 @@ void setup() {
   pinMode(pinIN2, OUTPUT);  
   pinMode(pinEnable, OUTPUT);
   pinMode(pinPWM, OUTPUT);  
+  pinMode(LED1_GN, OUTPUT); 
+  pinMode(LED2_GN, OUTPUT); 
+  pinMode(LED2_RT, OUTPUT); 
   pinMode(pinFeedback, INPUT);    
   pinMode(pinFault, INPUT);      
   pinMode(pinPot, INPUT);      
   pinMode(pinChargeCurrent, INPUT);
+  
   
   // configure ADC reference
   // analogReference(DEFAULT); // ADC 5.0v ref    
@@ -211,13 +225,15 @@ void setup() {
   Serial.println("START");
   Serial.print("Ardumower Sender ");
   Serial.println(VER);
-  #if defined (SIGCODE_1)	
-		Serial.println("SIGCODE_1");
-	#elif defined (SIGCODE_2)   
-		Serial.println("SIGCODE_2");
-	#elif defined (SIGCODE_3)   
-		Serial.println("SIGCODE_3");
-	#endif
+  #if defined (SIGCODE_1) 
+    Serial.println("SIGCODE_1");
+  #elif defined (SIGCODE_2)   
+    Serial.println("SIGCODE_2");
+  #elif defined (SIGCODE_3)   
+    Serial.println("SIGCODE_3");
+  #elif defined (SIGCODE_4)
+    Serial.println("SIGCODE_4");
+  #endif
   
   Serial.print("USE_PERI_FAULT=");
   Serial.println(USE_PERI_FAULT);
@@ -292,7 +308,6 @@ void loop(){
     } else {
       // switch on perimeter
       enableSender = true;
-      //analogWrite(pinPWM, 255);
       analogWrite(pinPWM, dutyPWM);
       if ( USE_PERI_FAULT && (dutyPWM == 255) && (digitalRead(pinFault) == LOW) ) {
         enableSender = false;
@@ -329,14 +344,18 @@ void loop(){
     if (USE_PERI_CURRENT) {
       // determine perimeter current (Ampere)
       periCurrentMeasurements.getAverage(v);    
-      periCurrentAvg = ((double)v) / 1023.0 * 1.1 / 0.525;   // 525 mV per amp    
+      // wm periCurrentAvg = ((double)v) / 1023.0 * 1.1 / 0.525;   // 525 mV per amp    
+      periCurrentAvg = ((double)v) / 1023.0 * 1.1 / 1.0;   // 525 mV per amp    
       unsigned int h;
       periCurrentMeasurements.getHighest(h);    
-      periCurrentMax = ((double)h) / 1023.0 * 1.1 / 0.525;   // 525 mV per amp    
+      // wm periCurrentMax = ((double)h) / 1023.0 * 1.1 / 0.525;   // 525 mV per amp    
+      periCurrentMax = ((double)h) / 1023.0 * 1.1 / 1.0;   // 525 mV per amp    
     }
         
     Serial.print("time=");
     Serial.print(millis()/1000);    
+    Serial.print("\tEN=");
+    Serial.print(digitalRead(pinEnable));
     Serial.print("\tchgCurrent=");
     Serial.print(chargeCurrent, 3);
     Serial.print("\tchgCurrentADC=");
@@ -387,6 +406,8 @@ void loop(){
   }
   digitalWrite(pinLED, stateLED);   
 
+  digitalWrite(LED1_GN, isCharging);   
+  digitalWrite(LED2_RT, enableSender);   
 }
 
 

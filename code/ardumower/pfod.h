@@ -98,7 +98,9 @@ class RemoteControl
     void processCommandMenu(String pfodCmd);
     void sendManualMenu(boolean update);
     void sendCompassMenu(boolean update);
+    void sendTestOdoMenu(boolean update);		// WM
     void processCompassMenu(String pfodCmd);
+    void processTestOdoMenu(String pfodCmd);	// WM
     void processManualMenu(String pfodCmd);
     void processSettingsMenu(String pfodCmd);      
     
@@ -125,6 +127,7 @@ class RemoteControl
     void sendDateTimeMenu(boolean update);
     void sendFactorySettingsMenu(boolean update);    
     void sendADCMenu(boolean update);
+	void sendHeightControlMenu(boolean update);		// WM Heightscontrol Mowermotor
     
     void processMotorMenu(String pfodCmd);    
     void processErrorMenu(String pfodCmd);        
@@ -145,6 +148,7 @@ class RemoteControl
     void processDateTimeMenu(String pfodCmd);
     void processFactorySettingsMenu(String pfodCmd); 
     void processInfoMenu(String pfodCmd);
+	void processHeightControlMenu(String pfodCmd);	// WM Heightscontrol Mowermotor
 
     // timer
     void sendTimerDetailMenu(int timerIdx, boolean update);

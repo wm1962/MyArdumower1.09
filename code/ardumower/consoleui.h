@@ -43,6 +43,7 @@ void Robot::printInfo(Stream &s){
   //Streamprint(s, "r%4u ", freeRam());  
   Streamprint(s, "m%1d ", consoleMode);			    
   Streamprint(s, "%4s ", stateNames[stateCurr]);			    
+  Streamprint(s, "LT:%s ", lastSensorTriggeredName());
   if (consoleMode == CONSOLE_PERIMETER){
     Streamprint(s, "sig min %4d max %4d avg %4d mag %5d qty %3d",
       (int)perimeter.getSignalMin(0), (int)perimeter.getSignalMax(0), (int)perimeter.getSignalAvg(0),

@@ -142,8 +142,10 @@ private:
   // hardware
   void initADXL345B();
   boolean initL3G4200D();
+  void initITG3205();
   void initHMC5883L();
   void readL3G4200D(boolean useTa);
+  void readITG3205(boolean useTa);
   void readADXL345B();
   void readHMC5883L();
   boolean foundNewMinMax;

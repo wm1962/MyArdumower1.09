@@ -13,6 +13,7 @@ default settings for motor, perimeter, bumper, odometry etc.
 #include "pinman.h"
 #include "buzzer.h"
 #include "flashmem.h"
+#include <Streaming.h>                   // WM http://arduiniana.org/libraries/streaming/
 
 
 Mower robot;
@@ -80,6 +81,10 @@ Mower::Mower(){
   //  ------ free wheel sensor-------------------------------
   freeWheelUse               = 0;          // has free wheel sensor?  
   
+  //  WM --- Height Control --------------------------------
+  hcUse                      = 0;          // has free wheel sensor?
+  hcTicksPerRevolution       = 100;        // solution Stepper-Motor
+  
   //  ------ bumper (BumperDuino)-------------------------------
   bumperUse                  = 0;          // has bumpers?
   tiltUse                    = 0;          // use tilt-sensor?
@@ -101,6 +106,8 @@ Mower::Mower(){
   
   // ------ perimeter ---------------------------------
   perimeterUse               = 0;          // use perimeter?    
+  useWhichPeriSensor         = 0;          // WM - use SEN_PERIM_LEFT
+  useWhichPeriSensorForTrack = 0;          // WM - use SEN_PERIM_LEFT
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
   perimeterOutRollTimeMax    = 2000;       // roll time max after perimeter out (ms)
   perimeterOutRollTimeMin    = 750;        // roll time min after perimeter out (ms)
@@ -116,7 +123,6 @@ Mower::Mower(){
     perimeterPID.Ki    = 7.0;
     perimeterPID.Kd    = 9.0;
 #endif  
-  
   trackingPerimeterTransitionTimeOut              = 2500;   // never<500 ms
   trackingErrorTimeOut                            = 10000;  // 0=disable
   trackingBlockInnerWheelWhilePerimeterStruggling = 1;
@@ -163,7 +169,7 @@ Mower::Mower(){
 		chgFactor                  = ADC2voltage(1)*10;        // ADC to charging current ampere factor  (see mower.h for macros)								  
   #elif defined (PCB_1_3)   // PCB 1.3
 		batSwitchOffIfIdle         = 8;          // switch off battery if idle (minutes, 0=off) 
-  	batFactor                  = voltageDividerUges(100, 10, 1.0)*ADC2voltage(1)*10;   // ADC to battery voltage factor *10
+  		batFactor                  = voltageDividerUges(100, 10, 1.0)*ADC2voltage(1)*10;   // ADC to battery voltage factor *10
 		batChgFactor               = voltageDividerUges(100, 10, 1.0)*ADC2voltage(1)*10;   // ADC to battery voltage factor *10
 		chgFactor                  = ADC2voltage(1)*5;        // ADC to charging current ampere factor  (see mower.h for macros)	
     DiodeD9                    = 0.36;       // Spannungsabfall an der Diode D9 auf den 1.3 Board (Die Spannungsanzeige ist zu niedrig verursacht durch die Diode D9) **UZ**							  
@@ -254,7 +260,8 @@ ISR(PCINT0_vect){
   
 	volatile byte oldOdoPins = 0;
   // Arduino Mega odometry interrupts
-  ISR(PCINT2_vect, ISR_NOBLOCK)
+  // WM - ISR(PCINT2_vect, ISR_NOBLOCK)
+  ISR(PCINT2_vect)		// ISR_NOBLOCK gibt beim Mega sporadisches Wackeln beim Fahren
   {				
 		const byte actPins = PINK;                				// read register PINK
 		const byte setPins = (oldOdoPins ^ actPins);
@@ -308,23 +315,24 @@ NewPing NewSonarCenter(pinSonarCenterTrigger, pinSonarCenterEcho, 110);
 // (required so we can use Arduino Due native port)
 
 void Mower::setup(){
-	PinMan.begin();    
+  PinMan.begin();    
   // keep battery switched ON (keep this at system start!)
   pinMode(pinBatterySwitch, OUTPUT);
   digitalWrite(pinBatterySwitch, HIGH);
 
   Buzzer.begin();
-	Console.begin(CONSOLE_BAUDRATE);  
-	I2Creset();	
+  Console.begin(CONSOLE_BAUDRATE);  
+  Console << F( "\n" __FILE__ " " __DATE__ " " __TIME__ "\n" );		// WM - Ausgabe Version und Date
+  I2Creset();	
   Wire.begin();            			
   unsigned long timeout = millis() + 10000;
-	while (millis() < timeout){
+  while (millis() < timeout){
     if (!checkAT24C32()){
       Console.println(F("PCB not powered ON or RTC module missing"));
       delay(1000);
     } else break;
-	}
-	ADCMan.init();
+  }
+  ADCMan.init();
   Console.println(F("SETUP"));
   
   // LED, buzzer, battery
@@ -333,6 +341,7 @@ void Mower::setup(){
   digitalWrite(pinBuzzer,0);    
   pinMode(pinBatteryVoltage, INPUT);        
   pinMode(pinChargeCurrent, INPUT);          
+  pinMode(pinChargeBilanz, INPUT);		// WM
   pinMode(pinChargeVoltage, INPUT);            
   pinMode(pinChargeRelay, OUTPUT);
   setActuator(ACT_CHGRELAY, 0);
@@ -435,6 +444,7 @@ void Mower::setup(){
   ADCMan.setCapture(pinBatteryVoltage, 1, false);
   ADCMan.setCapture(pinChargeVoltage, 1, false);  
   ADCMan.setCapture(pinVoltageMeasurement, 1, false);    
+  ADCMan.setCapture(pinChargeBilanz, 1, true);				// WM
   perimeter.setPins(pinPerimeterLeft, pinPerimeterRight);      
     
   imu.init();
@@ -577,14 +587,15 @@ int Mower::readSensor(char type){
     //case SEN_MOTOR_MOW_RPM: break; // not used - rpm is upated via interrupt
 #endif
 // perimeter----------------------------------------------------------------------------------------------
-    case SEN_PERIM_LEFT: return perimeter.getMagnitude(0); break;
-    //case SEN_PERIM_RIGHT: return Perimeter.getMagnitude(1); break;
+    case SEN_PERIM_LEFT:  return perimeter.getMagnitude(0); break;
+    case SEN_PERIM_RIGHT: return perimeter.getMagnitude(1); break;
     
 // battery------------------------------------------------------------------------------------------------
     case SEN_BAT_VOLTAGE: ADCMan.read(pinVoltageMeasurement);  return ADCMan.read(pinBatteryVoltage); break;
     case SEN_CHG_VOLTAGE: return ADCMan.read(pinChargeVoltage); break;
     //case SEN_CHG_VOLTAGE: return((int)(((double)analogRead(pinChargeVoltage)) * batFactor)); break;
     case SEN_CHG_CURRENT: return ADCMan.read(pinChargeCurrent); break;
+    case SEN_LOAD_CURRENT: return ADCMan.read(pinChargeBilanz); break;		// WM
     
 // buttons------------------------------------------------------------------------------------------------
     case SEN_BUTTON: return(digitalRead(pinButton)); break; 

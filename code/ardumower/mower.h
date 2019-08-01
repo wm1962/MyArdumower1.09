@@ -89,6 +89,7 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #define pinBatterySwitch 4         // battery-OFF switch   
 #define pinChargeVoltage A9        // charging voltage sensor
 #define pinChargeCurrent A8        // charge current sensor
+#define pinChargeBilanz  A10       // WM -charge current load
 #define pinChargeRelay 50          // charge relay
 #define pinRemoteMow 12            // remote control mower motor
 #define pinRemoteSteer 11          // remote control steering 

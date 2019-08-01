@@ -114,7 +114,9 @@ void Robot::loadSaveUserSettings(boolean readflag){
   eereadwrite(readflag, addr, batFactor);
   eereadwrite(readflag, addr, batChgFactor);
   eereadwrite(readflag, addr, chgSenseZero);
-  eereadwrite(readflag, addr, chgFactor);
+//  eereadwrite(readflag, addr, chgFactor);		// WM -  chgFactor sollte nicht gespeichert werden, da
+  float dummy;									// WM -  dieser Wert im Programm direkt berechnet wird
+  eereadwrite(readflag, addr, dummy);			// WM -  an dessen Stelle wird ein Dummy-Float geschrieben
   eereadwrite(readflag, addr, batFullCurrent);
   eereadwrite(readflag, addr, startChargingIfBelow);
   eereadwrite(readflag, addr, stationRevTime);
@@ -142,13 +144,25 @@ void Robot::loadSaveUserSettings(boolean readflag){
   eereadwrite(readflag, addr, statsOverride);   
   eereadwrite(readflag, addr, bluetoothUse);
   eereadwrite(readflag, addr, esp8266Use);
-  eereadwriteString(readflag, addr, esp8266ConfigString);
   eereadwrite(readflag, addr, tiltUse);
   eereadwrite(readflag, addr, sonarSlowBelow);
-  // WM vorübergehend ausgeblendet  eereadwrite(readflag, addr, motorMowForceOff);	
+  eereadwrite(readflag, addr, motorMowForceOff);	
   eereadwrite(readflag, addr, freeWheelUse);  
+  // WM - new parameters
+  eereadwrite(readflag, addr, hcUse);
+  eereadwrite(readflag, addr, hcMin);
+  eereadwrite(readflag, addr, hcMax);
+  eereadwrite(readflag, addr, hcPos1);
+  eereadwrite(readflag, addr, hcPos2);
+  eereadwrite(readflag, addr, hcPos3);
+  eereadwrite(readflag, addr, useWhichPeriSensor);	
+  eereadwrite(readflag, addr, useWhichPeriSensorForTrack);
+  eereadwrite(readflag, addr, MaxSpeedperiPwm);
+  // eereadwriteString(readflag, addr, esp8266ConfigString);	// muß String mit fester Länge sein
   Console.print(F("loadSaveUserSettings addrstop="));
   Console.println(addr);
+    int distance = pulseIn(8, HIGH,26000); // Read in times pulse
+
 }
 
 void Robot::loadUserSettings(){  
@@ -263,6 +277,26 @@ void Robot::printSettingSerial(){
   Console.print  (F("bumperUse                                  : "));
   Console.println(bumperUse,1);
 
+  // WM ------ Free wheel ---------------------------------------------------------
+  Console.println(F("---------- FreeWheel -----------------------------------------"));
+  Console.print  (F("freeWheelUse                              : "));
+  Console.println(freeWheelUse,1);
+
+  // WM ------ Height Control -----------------------------------------------------
+  Console.println(F("---------- HeightControl -------------------------------------"));
+  Console.print  (F("HeightControlUse                          : "));
+  Console.println(hcUse,1);
+  Console.print  (F("hcMin                                     : "));
+  Console.println(hcMin);
+  Console.print  (F("hcMax                                     : "));
+  Console.println(hcMax);
+  Console.print  (F("hcPos1                                    : "));
+  Console.println(hcPos1);
+  Console.print  (F("hcPos2                                    : "));
+  Console.println(hcPos2);
+  Console.print  (F("hcPos3                                    : "));
+  Console.println(hcPos3);
+
   // ------ drop ------------------------------------------------------------------
   Console.println(F("---------- drop ----------------------------------------------"));
   Console.print  (F("dropUse                                    : "));
@@ -295,6 +329,10 @@ void Robot::printSettingSerial(){
   Console.println(F("---------- perimeter -----------------------------------------"));
   Console.print  (F("perimeterUse                               : "));
   Console.println(perimeterUse,1);
+  Console.print  (F("Use which Peri-Sensor                      : "));
+  Console.println(useWhichPeriSensor,1);
+  Console.print  (F("Use which Peri-Sensor for Tracking         : "));
+  Console.println(useWhichPeriSensorForTrack,1);
   Console.print  (F("perimeterTriggerTimeout                    : "));
   Console.println(perimeterTriggerTimeout);
   Console.print  (F("perimeterOutRollTimeMax                    : "));
@@ -319,6 +357,9 @@ void Robot::printSettingSerial(){
   Console.println(trackingErrorTimeOut);
   Console.print  (F("trackingBlockInnerWheelWhilePerimeterStruggling : "));
   Console.println(trackingBlockInnerWheelWhilePerimeterStruggling,1);
+  Console.print  (F("MaxSpeedperiPwm                            : "));
+  Console.println(MaxSpeedperiPwm);
+  
 
   // ------ lawn sensor -----------------------------------------------------------
   Console.println(F("---------- lawn sensor ---------------------------------------"));
@@ -397,7 +438,7 @@ void Robot::printSettingSerial(){
   Console.print  (F("chargingTimeout                            : "));
   Console.println(chargingTimeout); 	
   Console.print  (F("chgFactor                                  : "));
-  Console.println( chgFactor);
+  Console.println( chgFactor,5);			// WM - 5 Nachkommastellen anzeigen
   
   // ------  charging station -----------------------------------------------------
   Console.println(F("---------- charging station ----------------------------------"));

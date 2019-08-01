@@ -87,6 +87,7 @@ enum {
   SEN_RAIN,
   SEN_TILT,
   SEN_FREE_WHEEL,    
+  SEN_LOAD_CURRENT,       // WM - Ampere * 100
 };
 
 // actuators
@@ -388,6 +389,9 @@ class Robot
     int trackingPerimeterTransitionTimeOut;
     int trackingErrorTimeOut;    
     char trackingBlockInnerWheelWhilePerimeterStruggling;
+	char useWhichPeriSensor;			// WM - select the Sonsor Left or right
+	char useWhichPeriSensorForTrack;	// WM - you can select another Senors for Tracking
+	
     //  --------- lawn state ----------------------------
     char lawnSensorUse     ;       // use capacitive Sensor
     int lawnSensorCounter;
@@ -430,7 +434,8 @@ class Robot
 	float hcSollwert;
 	float hcMin;
 	float hcMax;
-
+	float hcPos1,hcPos2,hcPos3;
+	
     // --------- pfodApp ----------------------------------
     RemoteControl rc; // pfodApp
     unsigned long nextTimePfodLoop ;    
@@ -466,6 +471,7 @@ class Robot
     float batCapacity ; // battery capacity (mAh)
     float chgVoltage ;  // charge voltage (Volt)
     float chgCurrent ;  // charge current  (Ampere)
+    float loadCurrent ;  // WM -load current  (Ampere)
     int chgNull;        // Nulldurchgang Ladestromsensor
     int stationRevTime     ;    // charge station reverse time (ms)
     int stationRollTime    ;    // charge station roll time (ms)
@@ -605,7 +611,8 @@ protected:
 		virtual void reverseOrBidirBumper(byte aRollDir);
     
     // other		
-	  virtual void setSensorTriggered(char type);
+	virtual void setSensorTriggered(byte type);
+	//  virtual void setSensorTriggered(char type);
     virtual void printRemote();
     virtual void printOdometry();
     virtual void printMenu();    

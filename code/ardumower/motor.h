@@ -203,11 +203,13 @@ void Robot::motorControlPerimeter() {
     if (trackingBlockInnerWheelWhilePerimeterStruggling == 1) {
       if (perimeterInside) {
         rightSpeedperi = max(-MaxSpeedperiPwm, min(MaxSpeedperiPwm, MaxSpeedperiPwm / 2  + perimeterPID.y));
+        // WM leftSpeedperi = rightSpeedperi / 2;
         leftSpeedperi = 0;
       }
       else {
         rightSpeedperi = 0;
         leftSpeedperi = max(-MaxSpeedperiPwm, min(MaxSpeedperiPwm, MaxSpeedperiPwm / 2 - perimeterPID.y));
+        // WM rightSpeedperi = leftSpeedperi / 2;
       }
     }
 	
